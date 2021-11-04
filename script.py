@@ -3,6 +3,8 @@
 import lldb
 
 PATH_TO_MAPS = '/proc/{}/maps'
+OUTPUT_PATTERN = '"{ptr_name}" points to object "{obj_name}", that located in "{func_name}", frame #{frame_id}, ' \
+                 'of thread #{thread_id} '
 
 
 def get_threads_with_range(process: lldb.SBProcess):
@@ -21,25 +23,22 @@ def get_threads_with_range(process: lldb.SBProcess):
 
 def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
     pointers = list(filter(lambda x: x.type.is_pointer, exe_ctx.GetFrame().vars))
-    pointers = list(map(lambda x: x.data.uint64.all()[0], pointers))
-    pointers = sorted(pointers)
+    pointers = list(map(lambda x: (x.data.uint64.all()[0], x.GetName()), pointers))
+    pointers = sorted(pointers, key=lambda x: x[0])
     id = 0
-    def condition(x): return x >= len(pointers) or pointers[x] > right
     for thread, (left, right) in get_threads_with_range(exe_ctx.GetProcess()):
-        while id < len(pointers) and pointers[id] < left:
+        while id < len(pointers) and pointers[id][0] < left:
             id += 1
-        if condition(id):
-            continue
         for frame in thread.frames:
-            if condition(id):
-                break
             for var in frame.vars:
-                if condition(id):
-                    break
                 try:
                     location = int(var.location, 16)
-                    if location == pointers[id]:
-                        print('Found {} in thread #{}, frame #{}'.format(pointers[id], thread.idx, frame.idx),
+                    if location == pointers[id][0]:
+                        print(OUTPUT_PATTERN.format(ptr_name=pointers[id][1],
+                                                    obj_name=var.GetName(),
+                                                    func_name=frame.name,
+                                                    frame_id=frame.idx,
+                                                    thread_id=thread.idx),
                               file=result)
                         id += 1
                 except Exception:
