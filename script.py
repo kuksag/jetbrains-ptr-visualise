@@ -49,4 +49,3 @@ def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
 def __lldb_init_module(debugger, internal_dict):
     # command script import python_code/script.py
     debugger.HandleCommand('command script add -f script.visualise_pointer vp')
-    print('Script injected.')
