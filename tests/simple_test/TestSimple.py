@@ -2,12 +2,10 @@
 Check the simplest case
 """
 
-import lldb
-import lldbsuite.test.lldbutil as lldbutil
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 
-PATH_TO_SCRIPT = '/home/kuksag/jetBrains-prt-visualising/python_code/script.py'
+PATH_TO_SCRIPT = '../../script.py'
 
 
 class SimpleTest(TestBase):
@@ -23,6 +21,7 @@ class SimpleTest(TestBase):
         self.runCmd(f"command script import {PATH_TO_SCRIPT} --allow-reload")
 
         (target, process, thread, bkpt) = lldbutil.run_to_source_breakpoint(self,
-                                   "Set a breakpoint here", self.main_source_file)
+                                                                            "Set a breakpoint here",
+                                                                            self.main_source_file)
 
         self.expect("vp", startstr='"b" points to object "a"')
