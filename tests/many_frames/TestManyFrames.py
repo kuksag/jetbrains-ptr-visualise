@@ -1,5 +1,5 @@
 """
-Check the simplest case
+Check the many frames case
 """
 
 from lldbsuite.test.lldbtest import *
@@ -8,11 +8,11 @@ from lldbsuite.test.decorators import *
 PATH_TO_SCRIPT = '../../script.py'
 
 
-class SimpleTest(TestBase):
+class TestManyFrames(TestBase):
     mydir = TestBase.compute_mydir(__file__)
 
     @no_debug_info_test
-    def test_simple(self):
+    def test_many_frames(self):
         self.build()
         self.main_source_file = lldb.SBFileSpec("main.cpp")
         self.run_test()
