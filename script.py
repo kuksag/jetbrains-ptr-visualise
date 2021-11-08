@@ -33,7 +33,17 @@ def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
             for var in frame.vars:
                 try:
                     location = int(var.location, 16)
-                    if location == pointers[id][0]:
+                    if var.type.IsArrayType():
+                        while id < len(pointers) and location + var.size > pointers[id][0]:
+                            array_pos = (pointers[id][0] - location) // var.type.GetArrayElementType().size
+                            print(OUTPUT_PATTERN.format(ptr_name=pointers[id][1],
+                                                        obj_name=var.GetName() + f'[{array_pos}]',
+                                                        func_name=frame.name,
+                                                        frame_id=frame.idx,
+                                                        thread_id=thread.idx),
+                                  file=result)
+                            id += 1
+                    elif location == pointers[id][0]:
                         print(OUTPUT_PATTERN.format(ptr_name=pointers[id][1],
                                                     obj_name=var.GetName(),
                                                     func_name=frame.name,
