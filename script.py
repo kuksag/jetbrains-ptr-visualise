@@ -10,6 +10,10 @@ OUTPUT_PATTERN = '"{ptr_name}" points to object "{obj_name}", that located in "{
 
 @attr.s
 class TraceInfo:
+    """
+    Holds info after calling trace_var(pointer, var)
+    Can build a name of the target-object
+    """
     thread = attr.ib(validator=attr.validators.instance_of(lldb.SBThread))
     frame = attr.ib(validator=attr.validators.instance_of(lldb.SBFrame))
     trace = attr.ib(validator=attr.validators.instance_of(list))
@@ -99,6 +103,9 @@ def trace_pointer(pointer, process: lldb.SBProcess):
 
 
 def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
+    """
+    Take all pointers from current frame and find their target
+    """
     pointers = list(filter(lambda x: x.type.is_pointer, exe_ctx.GetFrame().vars))
     pointers = list(map(lambda x: (x.data.uint64.all()[0], x.GetName()), pointers))
     pointers = sorted(pointers, key=lambda x: x[0])
