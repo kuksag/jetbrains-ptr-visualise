@@ -1,10 +1,26 @@
 #!/usr/bin/env python
 
 import lldb
+import attr
 
 PATH_TO_MAPS = '/proc/{}/maps'
 OUTPUT_PATTERN = '"{ptr_name}" points to object "{obj_name}", that located in "{func_name}", frame #{frame_id}, ' \
                  'of thread #{thread_id} '
+
+
+@attr.s
+class TraceInfo:
+    thread = attr.ib(validator=attr.validators.instance_of(lldb.SBThread))
+    frame = attr.ib(validator=attr.validators.instance_of(lldb.SBFrame))
+    trace = attr.ib(validator=attr.validators.instance_of(list))
+
+    def build_name_from_trace(self):
+        result = ''
+        for var in self.trace:
+            result += var.name
+            if var.num_children > 0 and not var.type.IsArrayType():
+                result += '.'
+        return result
 
 
 def get_threads_with_range(process: lldb.SBProcess):
@@ -41,13 +57,35 @@ def read_location(location):
         return None
 
 
+def trace_var(pointer, var: lldb.SBValue):
+    """
+    If var is not a struct or array, then return it.
+    Otherwise, look through all members of var and go inside at which pointer points.
+
+    :param pointer:
+    :param var: current var that we look at
+    :raises ValueError:
+    :return: list of lldb.SBValue
+    """
+    if var.num_children > 0 and not var.type.is_pointer:
+        for child in var.children:
+            location = read_location(child.location)
+            if not location:
+                continue
+            if location <= pointer < location + child.size:
+                return [var] + trace_var(pointer, child)
+        raise ValueError(f"{pointer} not found in {var.name}")
+    else:
+        return [var]
+
+
 def trace_pointer(pointer, process: lldb.SBProcess):
     """
     Finding thread, stack, function, object to which the pointer points
 
     :param pointer: pointer (that may be invalid) to object
     :param process: current process running
-    :return: dict of info or None if pointer is invalid
+    :return: TraceInfo or None
     """
     for thread, (left, right) in get_threads_with_range(process):
         for frame in thread.frames:
@@ -55,19 +93,8 @@ def trace_pointer(pointer, process: lldb.SBProcess):
                 location = read_location(var.location)
                 if not location:
                     continue
-                if var.type.IsArrayType() and location <= pointer <= location + var.size:
-                    return {
-                        'thread': thread,
-                        'frame': frame,
-                        'value': var,
-                        'array_pos': (pointer - location) // var.type.GetArrayElementType().size
-                    }
-                elif location == pointer:
-                    return {
-                        'thread': thread,
-                        'frame': frame,
-                        'value': var,
-                    }
+                if location <= pointer < location + var.size:
+                    return TraceInfo(thread, frame, trace_var(pointer, var))
     return None
 
 
@@ -76,17 +103,15 @@ def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
     pointers = list(map(lambda x: (x.data.uint64.all()[0], x.GetName()), pointers))
     pointers = sorted(pointers, key=lambda x: x[0])
     for pointer, ptr_name in pointers:
-        info = trace_pointer(pointer, exe_ctx.GetProcess())
-        if not info:
-            continue
-        obj_name = info['value'].GetName()
-        if 'array_pos' in info:
-            obj_name += f"[{info['array_pos']}]"
-        print(OUTPUT_PATTERN.format(ptr_name=ptr_name,
-                                    obj_name=obj_name,
-                                    func_name=info['frame'].name,
-                                    frame_id=info['frame'].idx,
-                                    thread_id=info['thread'].idx), file=result)
+        trace_info = trace_pointer(pointer, exe_ctx.GetProcess())
+        if not trace_info:
+            print(f'target not found for {ptr_name}', file=result)
+        else:
+            print(OUTPUT_PATTERN.format(ptr_name=ptr_name,
+                                        obj_name=trace_info.build_name_from_trace(),
+                                        func_name=trace_info.frame.name,
+                                        frame_id=trace_info.frame.idx,
+                                        thread_id=trace_info.thread.idx), file=result)
 
 
 def __lldb_init_module(debugger, internal_dict):
