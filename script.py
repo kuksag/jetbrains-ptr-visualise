@@ -8,6 +8,12 @@ OUTPUT_PATTERN = '"{ptr_name}" points to object "{obj_name}", that located in "{
 
 
 def get_threads_with_range(process: lldb.SBProcess):
+    """
+    Gets range of stack for every thread in the process
+
+    :param process: current process running
+    :return: list of tuples (lldb.SBThread, (left, right))
+    """
     threads = sorted(process.threads, key=lambda x: x.frames[0].sp)
     ranges = []
     id = 0
@@ -21,39 +27,66 @@ def get_threads_with_range(process: lldb.SBProcess):
     return list(zip(threads, ranges))
 
 
+def read_location(location):
+    """
+    Trying to cast location from "proc/{PID}/maps" to int
+    e.g 7f000d417000 -> int(...)
+
+    :param location: string in hex form
+    :return: int or None
+    """
+    try:
+        return int(location, 16)
+    except ValueError:
+        return None
+
+
+def trace_pointer(pointer, process: lldb.SBProcess):
+    """
+    Finding thread, stack, function, object to which the pointer points
+
+    :param pointer: pointer (that may be invalid) to object
+    :param process: current process running
+    :return: dict of info or None if pointer is invalid
+    """
+    for thread, (left, right) in get_threads_with_range(process):
+        for frame in thread.frames:
+            for var in frame.vars:
+                location = read_location(var.location)
+                if not location:
+                    continue
+                if var.type.IsArrayType() and location <= pointer <= location + var.size:
+                    return {
+                        'thread': thread,
+                        'frame': frame,
+                        'value': var,
+                        'array_pos': (pointer - location) // var.type.GetArrayElementType().size
+                    }
+                elif location == pointer:
+                    return {
+                        'thread': thread,
+                        'frame': frame,
+                        'value': var,
+                    }
+    return None
+
+
 def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
     pointers = list(filter(lambda x: x.type.is_pointer, exe_ctx.GetFrame().vars))
     pointers = list(map(lambda x: (x.data.uint64.all()[0], x.GetName()), pointers))
     pointers = sorted(pointers, key=lambda x: x[0])
-    id = 0
-    for thread, (left, right) in get_threads_with_range(exe_ctx.GetProcess()):
-        while id < len(pointers) and pointers[id][0] < left:
-            id += 1
-        for frame in thread.frames:
-            for var in frame.vars:
-                try:
-                    location = int(var.location, 16)
-                    if var.type.IsArrayType():
-                        while id < len(pointers) and location + var.size > pointers[id][0]:
-                            array_pos = (pointers[id][0] - location) // var.type.GetArrayElementType().size
-                            print(OUTPUT_PATTERN.format(ptr_name=pointers[id][1],
-                                                        obj_name=var.GetName() + f'[{array_pos}]',
-                                                        func_name=frame.name,
-                                                        frame_id=frame.idx,
-                                                        thread_id=thread.idx),
-                                  file=result)
-                            id += 1
-                    elif location == pointers[id][0]:
-                        print(OUTPUT_PATTERN.format(ptr_name=pointers[id][1],
-                                                    obj_name=var.GetName(),
-                                                    func_name=frame.name,
-                                                    frame_id=frame.idx,
-                                                    thread_id=thread.idx),
-                              file=result)
-                        id += 1
-                except Exception:
-                    # suppress failed int-16 cast
-                    pass
+    for pointer, ptr_name in pointers:
+        info = trace_pointer(pointer, exe_ctx.GetProcess())
+        if not info:
+            continue
+        obj_name = info['value'].GetName()
+        if 'array_pos' in info:
+            obj_name += f"[{info['array_pos']}]"
+        print(OUTPUT_PATTERN.format(ptr_name=ptr_name,
+                                    obj_name=obj_name,
+                                    func_name=info['frame'].name,
+                                    frame_id=info['frame'].idx,
+                                    thread_id=info['thread'].idx), file=result)
 
 
 def __lldb_init_module(debugger, internal_dict):
