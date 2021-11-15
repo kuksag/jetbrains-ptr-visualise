@@ -102,7 +102,19 @@ def trace_pointer(pointer, process: lldb.SBProcess):
     return None
 
 
-def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
+def tp(debugger, command, exe_ctx, result, internal_dict):
+    """
+    Alias to call from debugger
+    """
+    # trace_info = trace_pointer(read_location(command), exe_ctx.GetProcess())
+    trace_info = trace_pointer(int(command), exe_ctx.GetProcess())
+    if trace_info:
+        print(trace_info.build_name_from_trace(), file=result)
+    else:
+        print('not found', file=result)
+
+
+def visualise_pointers(debugger, command, exe_ctx, result, internal_dict):
     """
     Take all pointers from current frame and find their target
     """
@@ -123,4 +135,5 @@ def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
 
 def __lldb_init_module(debugger, internal_dict):
     # command script import python_code/script.py
-    debugger.HandleCommand('command script add -f script.visualise_pointer vp')
+    debugger.HandleCommand('command script add -f script.visualise_pointers vp')
+    debugger.HandleCommand('command script add -f script.tp tp')
