@@ -61,38 +61,44 @@ def read_location(location):
         return None
 
 
-def trace_var(pointer, var: lldb.SBValue, type: lldb.SBType = None):
+def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
     """
     If var is not a struct or array, then return it.
     Otherwise, look through all members of var and go inside at which pointer points.
 
     :param pointer:
     :param var: current var that we look at
+    :param pointee_type: pointee_type or None
     :raises ValueError:
     :return: list of lldb.SBValue
     """
-    if var.num_children > 0 and not var.type.is_pointer and var.type != type:
+    if var.num_children > 0 and not var.type.is_pointer and var.type != pointee_type:
         for child in var.children:
             location = read_location(child.location)
             if not location:
                 continue
-            if location <= pointer < location + child.size:
-                return [var] + trace_var(pointer, child)
+            try:
+                if location <= pointer < location + child.size:
+                    return [var] + trace_var(pointer, child, pointee_type)
+            except RuntimeError:
+                # The wrong type was chosen; e.g. union
+                pass
         raise RuntimeError(f"{pointer} not found in {var.name}")
     else:
         if read_location(var.location) != pointer:
             raise RuntimeError(f"pointer {pointer} doesnt match with found address {read_location(var.location)}")
-        if type is not None and type != var.type:
-            raise RuntimeError(f"pointer type {type} doesn't match with found type {var.type}")
+        if type is not None and pointee_type != var.type:
+            raise RuntimeError(f"pointer type {pointee_type} doesn't match with found type {var.type}")
         return [var]
 
 
-def trace_pointer(pointer, process: lldb.SBProcess, type: lldb.SBType = None):
+def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = None):
     """
     Finding thread, stack, function, object to which the pointer points
 
     :param pointer: pointer (that may be invalid) to object
     :param process: current process running
+    :param pointee_type: pointee_type or None
     :return: TraceInfo or None
     """
     for thread, (left, right) in get_threads_with_range(process):
@@ -102,7 +108,7 @@ def trace_pointer(pointer, process: lldb.SBProcess, type: lldb.SBType = None):
                 if not location:
                     continue
                 if location <= pointer < location + var.size:
-                    return TraceInfo(thread, frame, trace_var(pointer, var, type))
+                    return TraceInfo(thread, frame, trace_var(pointer, var, pointee_type))
     return None
 
 
