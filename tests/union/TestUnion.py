@@ -8,7 +8,7 @@ from lldbsuite.test.decorators import *
 PATH_TO_SCRIPT = '../../script.py'
 
 
-class UnionTest(TestBase):
+class TestUnion(TestBase):
     mydir = TestBase.compute_mydir(__file__)
 
     @no_debug_info_test

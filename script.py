@@ -101,7 +101,7 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     :param pointee_type: pointee_type or None
     :return: TraceInfo or None
     """
-    for thread, (left, right) in get_threads_with_range(process):
+    for thread in process.threads:
         for frame in thread.frames:
             for var in frame.vars:
                 location = read_location(var.location)

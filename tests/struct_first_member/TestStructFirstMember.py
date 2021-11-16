@@ -1,5 +1,5 @@
 """
-Check the simplest case
+Check situation when we have a pointer to the first child of object
 """
 
 from lldbsuite.test.lldbtest import *
