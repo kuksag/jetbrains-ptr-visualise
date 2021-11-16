@@ -22,7 +22,7 @@ class TraceInfo:
         result = ''
         for var in self.trace:
             result += var.name
-            if var.num_children > 0 and not var.type.IsArrayType():
+            if var.num_children > 0 and not var.type.IsArrayType() and var != self.trace[-1]:
                 result += '.'
         return result
 
@@ -61,7 +61,7 @@ def read_location(location):
         return None
 
 
-def trace_var(pointer, var: lldb.SBValue):
+def trace_var(pointer, var: lldb.SBValue, type: lldb.SBType = None):
     """
     If var is not a struct or array, then return it.
     Otherwise, look through all members of var and go inside at which pointer points.
@@ -71,19 +71,23 @@ def trace_var(pointer, var: lldb.SBValue):
     :raises ValueError:
     :return: list of lldb.SBValue
     """
-    if var.num_children > 0 and not var.type.is_pointer:
+    if var.num_children > 0 and not var.type.is_pointer and var.type != type:
         for child in var.children:
             location = read_location(child.location)
             if not location:
                 continue
             if location <= pointer < location + child.size:
                 return [var] + trace_var(pointer, child)
-        raise ValueError(f"{pointer} not found in {var.name}")
+        raise RuntimeError(f"{pointer} not found in {var.name}")
     else:
+        if read_location(var.location) != pointer:
+            raise RuntimeError(f"pointer {pointer} doesnt match with found address {read_location(var.location)}")
+        if type is not None and type != var.type:
+            raise RuntimeError(f"pointer type {type} doesn't match with found type {var.type}")
         return [var]
 
 
-def trace_pointer(pointer, process: lldb.SBProcess):
+def trace_pointer(pointer, process: lldb.SBProcess, type: lldb.SBType = None):
     """
     Finding thread, stack, function, object to which the pointer points
 
@@ -98,7 +102,7 @@ def trace_pointer(pointer, process: lldb.SBProcess):
                 if not location:
                     continue
                 if location <= pointer < location + var.size:
-                    return TraceInfo(thread, frame, trace_var(pointer, var))
+                    return TraceInfo(thread, frame, trace_var(pointer, var, type))
     return None
 
 
@@ -119,10 +123,9 @@ def visualise_pointers(debugger, command, exe_ctx, result, internal_dict):
     Take all pointers from current frame and find their target
     """
     pointers = list(filter(lambda x: x.type.is_pointer, exe_ctx.GetFrame().vars))
-    pointers = list(map(lambda x: (x.data.uint64.all()[0], x.GetName()), pointers))
-    pointers = sorted(pointers, key=lambda x: x[0])
-    for pointer, ptr_name in pointers:
-        trace_info = trace_pointer(pointer, exe_ctx.GetProcess())
+    pointers = list(map(lambda x: (x.data.uint64s[0], x.GetName(), x.type.GetPointeeType()), pointers))
+    for pointer, ptr_name, pointee_type in pointers:
+        trace_info = trace_pointer(pointer, exe_ctx.GetProcess(), pointee_type)
         if not trace_info:
             print(f'target not found for {ptr_name}', file=result)
         else:
