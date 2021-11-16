@@ -8,7 +8,21 @@ OUTPUT_PATTERN = '"{ptr_name}" points to object "{obj_name}", that located in "{
                  'of thread #{thread_id} '
 
 
-@attr.s
+def read_location(location):
+    """
+    Trying to cast location from "proc/{PID}/maps" to int
+    e.g 7f000d417000 -> int(...)
+
+    :param location: string in hex form
+    :return: int or None
+    """
+    try:
+        return int(location, 16)
+    except ValueError:
+        return None
+
+
+@attr.s()
 class TraceInfo:
     """
     Holds info after calling trace_var(pointer, var)
@@ -17,6 +31,12 @@ class TraceInfo:
     thread = attr.ib(validator=attr.validators.instance_of(lldb.SBThread))
     frame = attr.ib(validator=attr.validators.instance_of(lldb.SBFrame))
     trace = attr.ib(validator=attr.validators.instance_of(list))
+    pointer = attr.ib(validator=attr.validators.instance_of(int))
+
+    def get_offset(self):
+        offset = self.pointer - read_location(self.trace[-1].location)
+        assert offset >= 0
+        return offset
 
     def build_name_from_trace(self):
         result = ''
@@ -25,6 +45,18 @@ class TraceInfo:
             if var.num_children > 0 and not var.type.IsArrayType() and var != self.trace[-1]:
                 result += '.'
         return result
+
+    @staticmethod
+    def get_info(trace_info, ptr_name=None):
+        if not trace_info:
+            return f'target not found for {ptr_name or TraceInfo.pointer}'
+        else:
+            return OUTPUT_PATTERN.format(ptr_name=ptr_name or TraceInfo.pointer,
+                                         obj_name=trace_info.build_name_from_trace() + (
+                                             f" (offset +{trace_info.get_offset()})" if trace_info.get_offset() else ""),
+                                         func_name=trace_info.frame.name,
+                                         frame_id=trace_info.frame.idx,
+                                         thread_id=trace_info.thread.idx)
 
 
 def get_threads_with_range(process: lldb.SBProcess):
@@ -45,20 +77,6 @@ def get_threads_with_range(process: lldb.SBProcess):
                 ranges.append((left, right))
                 id += 1
     return list(zip(threads, ranges))
-
-
-def read_location(location):
-    """
-    Trying to cast location from "proc/{PID}/maps" to int
-    e.g 7f000d417000 -> int(...)
-
-    :param location: string in hex form
-    :return: int or None
-    """
-    try:
-        return int(location, 16)
-    except ValueError:
-        return None
 
 
 def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
@@ -83,11 +101,10 @@ def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
             except RuntimeError:
                 # The wrong type was chosen; e.g. union
                 pass
-        raise RuntimeError(f"{pointer} not found in {var.name}")
+        # Didnt find any corresponding member => the pointee is in the padding
+        return [var]
     else:
-        if read_location(var.location) != pointer:
-            raise RuntimeError(f"pointer {pointer} doesnt match with found address {read_location(var.location)}")
-        if type is not None and pointee_type != var.type:
+        if pointee_type is not None and pointee_type != var.type:
             raise RuntimeError(f"pointer type {pointee_type} doesn't match with found type {var.type}")
         return [var]
 
@@ -101,6 +118,8 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     :param pointee_type: pointee_type or None
     :return: TraceInfo or None
     """
+    if pointee_type.name == 'void':
+        pointee_type = None
     for thread in process.threads:
         for frame in thread.frames:
             for var in frame.vars:
@@ -108,20 +127,20 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
                 if not location:
                     continue
                 if location <= pointer < location + var.size:
-                    return TraceInfo(thread, frame, trace_var(pointer, var, pointee_type))
+                    return TraceInfo(thread=thread,
+                                     frame=frame,
+                                     pointer=pointer,
+                                     trace=trace_var(pointer, var, pointee_type))
     return None
 
 
 def tp(debugger, command, exe_ctx, result, internal_dict):
     """
-    Alias to call from debugger
+    Alias for call from debugger
     """
     # trace_info = trace_pointer(read_location(command), exe_ctx.GetProcess())
     trace_info = trace_pointer(int(command), exe_ctx.GetProcess())
-    if trace_info:
-        print(trace_info.build_name_from_trace(), file=result)
-    else:
-        print('not found', file=result)
+    print(TraceInfo.get_info(trace_info), file=result)
 
 
 def visualise_pointers(debugger, command, exe_ctx, result, internal_dict):
@@ -132,14 +151,7 @@ def visualise_pointers(debugger, command, exe_ctx, result, internal_dict):
     pointers = list(map(lambda x: (x.data.uint64s[0], x.GetName(), x.type.GetPointeeType()), pointers))
     for pointer, ptr_name, pointee_type in pointers:
         trace_info = trace_pointer(pointer, exe_ctx.GetProcess(), pointee_type)
-        if not trace_info:
-            print(f'target not found for {ptr_name}', file=result)
-        else:
-            print(OUTPUT_PATTERN.format(ptr_name=ptr_name,
-                                        obj_name=trace_info.build_name_from_trace(),
-                                        func_name=trace_info.frame.name,
-                                        frame_id=trace_info.frame.idx,
-                                        thread_id=trace_info.thread.idx), file=result)
+        print(TraceInfo.get_info(trace_info, ptr_name), file=result)
 
 
 def __lldb_init_module(debugger, internal_dict):
