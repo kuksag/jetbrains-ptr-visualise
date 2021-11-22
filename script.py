@@ -2,6 +2,7 @@
 
 import lldb
 import attr
+from time_logger import log_time
 
 PATH_TO_MAPS = '/proc/{}/maps'
 OUTPUT_PATTERN = '"{ptr_name}" points to object "{obj_name}", that located in "{func_name}", frame #{frame_id}, ' \
@@ -48,15 +49,15 @@ class TraceInfo:
 
     @staticmethod
     def get_info(trace_info, ptr_name=None):
-        if not trace_info:
-            return f'target not found for {ptr_name or TraceInfo.pointer}'
-        else:
-            return OUTPUT_PATTERN.format(ptr_name=ptr_name or TraceInfo.pointer,
+        if trace_info:
+            return OUTPUT_PATTERN.format(ptr_name=ptr_name or trace_info.pointer,
                                          obj_name=trace_info.build_name_from_trace() + (
                                              f" (offset +{trace_info.get_offset()})" if trace_info.get_offset() else ""),
                                          func_name=trace_info.frame.name,
                                          frame_id=trace_info.frame.idx,
                                          thread_id=trace_info.thread.idx)
+        else:
+            return f'target not found for'
 
 
 def get_threads_with_range(process: lldb.SBProcess):
@@ -109,6 +110,7 @@ def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
         return [var]
 
 
+@log_time
 def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = None):
     """
     Finding thread, stack, function, object to which the pointer points
@@ -118,7 +120,7 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     :param pointee_type: pointee_type or None
     :return: TraceInfo or None
     """
-    if pointee_type.name == 'void':
+    if pointee_type and pointee_type.name == 'void':
         pointee_type = None
     for thread in process.threads:
         for frame in thread.frames:
@@ -143,6 +145,7 @@ def tp(debugger, command, exe_ctx, result, internal_dict):
     print(TraceInfo.get_info(trace_info), file=result)
 
 
+@log_time
 def visualise_pointers(debugger, command, exe_ctx, result, internal_dict):
     """
     Take all pointers from current frame and find their target
