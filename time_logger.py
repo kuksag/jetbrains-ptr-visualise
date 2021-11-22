@@ -5,7 +5,6 @@ import logging
 logging.basicConfig(filename='execution_time.log', level=logging.DEBUG, filemode='a')
 
 
-# TODO: place into module
 def log_time(func):
     @wraps(func)
     def wrapper(*args, **kwargs):

@@ -80,7 +80,7 @@ def get_threads_with_range(process: lldb.SBProcess):
     return list(zip(threads, ranges))
 
 
-def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
+def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None, allow_padding=False):
     """
     If var is not a struct or array, then return it.
     Otherwise, look through all members of var and go inside at which pointer points.
@@ -102,7 +102,12 @@ def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
             except RuntimeError:
                 # The wrong type was chosen; e.g. union
                 pass
+            except AssertionError:
+                # Gotta find object without offset
+                pass
         # Didnt find any corresponding member => the pointee is in the padding
+        if not allow_padding:
+            assert pointer == read_location(var.location)
         return [var]
     else:
         if pointee_type is not None and pointee_type != var.type:
@@ -129,10 +134,14 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
                 if not location:
                     continue
                 if location <= pointer < location + var.size:
+                    try:
+                        trace = trace_var(pointer, var, pointee_type)
+                    except AssertionError:
+                        trace = trace_var(pointer, var, pointee_type, allow_padding=True)
                     return TraceInfo(thread=thread,
                                      frame=frame,
                                      pointer=pointer,
-                                     trace=trace_var(pointer, var, pointee_type))
+                                     trace=trace)
     return None
 
 
