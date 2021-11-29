@@ -32,8 +32,8 @@ def inspect_log():
 
 if __name__ == '__main__':
     remove_previous_log()
+    build()
     for test in range(TESTS):
-        build()
         run_debugger.run()
     for func, durations in inspect_log().items():
         print(f'{func}: {sum(durations) / len(durations)}')

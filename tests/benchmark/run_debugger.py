@@ -4,15 +4,16 @@ import os
 PATH_TO_SCRIPT = '../../script.py'
 PATH_TO_SOURCE = 'main.cpp'
 BREAKPOINT_ANCHOR = 'Set a breakpoint here'
-VP_CALLS_NUMBER = 10
-TP_CALLS_NUMBER = 10
+VP_CALLS_NUMBER = 0
+TP_CALLS_NUMBER = 5
 
 
 def find_line(file_path, substr):
     with open(file_path, 'r') as file:
         for i, line in enumerate(file.readlines()):
             if substr in line:
-                return i
+                # because lines in file enumerated from 1
+                return i + 1
     return None
 
 
