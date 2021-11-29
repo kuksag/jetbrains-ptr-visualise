@@ -127,7 +127,9 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     """
     if pointee_type and pointee_type.name == 'void':
         pointee_type = None
-    for thread in process.threads:
+    for thread, (left, right) in get_threads_with_range(process):
+        if not (left <= pointer <= right):
+            continue
         for frame in thread.frames:
             for var in frame.vars:
                 location = read_location(var.location)
