@@ -75,6 +75,7 @@ def get_threads_with_range(process: lldb.SBProcess):
             # parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
             left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
             if id < len(threads) and left <= threads[id].frames[0].sp <= right:
+                assert left <= right
                 ranges.append((left, right))
                 id += 1
     return list(zip(threads, ranges))
@@ -130,7 +131,11 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     for thread, (left, right) in get_threads_with_range(process):
         if not (left <= pointer <= right):
             continue
-        for frame in thread.frames:
+        for frame in reversed(thread.frames):
+            # keep in mind, that memory in stack is in from greater to smaller order
+            # check if var is in the current frame
+            if pointer > frame.GetCFA():
+                continue
             for var in frame.vars:
                 location = read_location(var.location)
                 if not location:

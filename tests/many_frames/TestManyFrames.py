@@ -25,5 +25,6 @@ class TestManyFrames(TestBase):
                                                                             self.main_source_file)
 
         self.expect("vp", ordered=False, substrs=['"a" points to object "A", that located in "main"',
-                                                  '"b" points to object "B", that located in "foo(int*)"',
-                                                  '"c" points to object "C", that located in "bar(int*, int*)"'])
+                                                  '"b" points to object "B", that located in "foo',
+                                                  '"c" points to object "C", that located in "bar',
+                                                  '"d" points to object "D", that located in "bar'])
