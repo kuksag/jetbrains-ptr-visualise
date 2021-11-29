@@ -1,15 +1,22 @@
 #include <thread>
 #include <vector>
 
-const int RECURSION_LEVEL = 300;
-const int THREAD_COUNT = 10;
+const int RECURSION_LEVEL = 1000;
+const int THREAD_COUNT = 300;
 
 void foo(int level = 0) {
+    int A = 0;
+    int *a = &A;
+    int *b = &A;
+    int *c = &A;
+    int *d = &A;
+    int *e = &A;
+    int *f = &A;
+    int *g = &A;
+    int *j = &A;
     if (level >= RECURSION_LEVEL) {
         return; // Set a breakpoint here
     }
-    int A = 0;
-    int *a = &A;
     foo(level + 1);
 }
 

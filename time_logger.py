@@ -1,8 +1,10 @@
 import datetime
 from functools import wraps
 import logging
+import datetime
 
 logging.basicConfig(filename='execution_time.log', level=logging.DEBUG, filemode='a')
+logging.info('script_started: %s', datetime.datetime.now())
 
 
 def log_time(func):
