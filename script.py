@@ -79,6 +79,8 @@ def get_threads_with_range(process: lldb.SBProcess):
                 ranges.append((left, right))
                 id += 1
     return list(zip(threads, ranges))
+# TODO: not working when we hit "continue"; need a proper caching
+cached_thread_with_ranges = 0
 
 
 def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None, allow_padding=False):
@@ -126,9 +128,12 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     :param pointee_type: pointee_type or None
     :return: TraceInfo or None
     """
+    global cached_thread_with_ranges
     if pointee_type and pointee_type.name == 'void':
         pointee_type = None
-    for thread, (left, right) in get_threads_with_range(process):
+    if isinstance(cached_thread_with_ranges, int):
+        cached_thread_with_ranges = get_threads_with_range(process)
+    for thread, (left, right) in cached_thread_with_ranges:
         if not (left <= pointer <= right):
             continue
         for frame in thread.frames:
