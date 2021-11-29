@@ -131,10 +131,10 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     for thread, (left, right) in get_threads_with_range(process):
         if not (left <= pointer <= right):
             continue
-        for frame in reversed(thread.frames):
-            # keep in mind, that memory in stack is in from greater to smaller order
-            # check if var is in the current frame
-            if pointer > frame.GetCFA():
+        for frame in thread.frames:
+            # frames goes in stack in from greater to smaller order
+            # pass every single, which frame pointer is smaller than our pointer
+            if frame.GetFP() < pointer:
                 continue
             for var in frame.vars:
                 location = read_location(var.location)

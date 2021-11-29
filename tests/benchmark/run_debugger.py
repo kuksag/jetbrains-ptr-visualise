@@ -4,7 +4,7 @@ import os
 PATH_TO_SCRIPT = '../../script.py'
 PATH_TO_SOURCE = 'main.cpp'
 BREAKPOINT_ANCHOR = 'Set a breakpoint here'
-VP_CALLS_NUMBER = 0
+VP_CALLS_NUMBER = 5
 TP_CALLS_NUMBER = 5
 
 
