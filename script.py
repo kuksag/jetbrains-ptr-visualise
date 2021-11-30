@@ -67,20 +67,18 @@ def get_threads_with_range(process: lldb.SBProcess):
     :param process: current process running
     :return: list of tuples (lldb.SBThread, (left, right))
     """
-    threads = sorted(process.threads, key=lambda x: x.frames[0].sp)
+    threads = sorted(process.threads, key=lambda x: x.GetFrameAtIndex(0).sp)
     ranges = []
     id = 0
     with open(PATH_TO_MAPS.format(process.id), 'r') as maps:
         for line in maps:
             # parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
             left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
-            if id < len(threads) and left <= threads[id].frames[0].sp <= right:
+            if id < len(threads) and left <= threads[id].GetFrameAtIndex(0).sp <= right:
                 assert left <= right
                 ranges.append((left, right))
                 id += 1
     return list(zip(threads, ranges))
-# TODO: not working when we hit "continue"; need a proper caching
-cached_thread_with_ranges = 0
 
 
 def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None, allow_padding=False):
@@ -128,15 +126,15 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     :param pointee_type: pointee_type or None
     :return: TraceInfo or None
     """
-    global cached_thread_with_ranges
     if pointee_type and pointee_type.name == 'void':
         pointee_type = None
-    if isinstance(cached_thread_with_ranges, int):
-        cached_thread_with_ranges = get_threads_with_range(process)
-    for thread, (left, right) in cached_thread_with_ranges:
+    for thread, (left, right) in get_threads_with_range(process):
         if not (left <= pointer <= right):
             continue
-        for frame in thread.frames:
+        for i in range(thread.GetNumFrames()):
+            frame = thread.GetFrameAtIndex(i)
+            # TODO: assert sorted + bin search
+
             # frames goes in stack in from greater to smaller order
             # pass every single, which frame pointer is smaller than our pointer
             if frame.GetFP() < pointer:
