@@ -13,6 +13,7 @@ def read_location(location):
     """
     Trying to cast location from "proc/{PID}/maps" to int or None
     e.g 7f000d417000 -> int(...)
+    We need this function because not all var.location returns correct value
     """
     try:
         return int(location, 16)
@@ -67,7 +68,7 @@ def get_threads_with_ranges(process: lldb.SBProcess):
         for thread in threads:
             for line in maps:
 
-                # parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
+                # Parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
                 left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
                 assert left <= right
 
@@ -165,7 +166,7 @@ def tp(debugger, command, exe_ctx, result, internal_dict):
     """
     Alias for call from debugger
     """
-    # trace_info = trace_pointer(read_location(command), exe_ctx.GetProcess())
+    # int(command) -- handles both cases: int and hex
     trace_info = trace_pointer(int(command), exe_ctx.GetProcess())
     print(TraceInfo.get_info(trace_info), file=result)
 
