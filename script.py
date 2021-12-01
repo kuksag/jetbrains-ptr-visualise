@@ -60,12 +60,12 @@ class TraceInfo:
             return f'target not found for'
 
 
-def get_threads_with_range(process: lldb.SBProcess):
+def get_threads_with_ranges(process: lldb.SBProcess):
     """
     Gets range of stack for every thread in the process
 
     :param process: current process running
-    :return: list of tuples (lldb.SBThread, (left, right))
+    :return: tuple (list of lldb.SBThread, list of (left, right))
     """
     threads = sorted(process.threads, key=lambda x: x.GetFrameAtIndex(0).sp)
     ranges = []
@@ -80,8 +80,7 @@ def get_threads_with_range(process: lldb.SBProcess):
                 if left <= thread.GetFrameAtIndex(0).sp <= right:
                     ranges.append((left, right))
                     break
-
-    return list(zip(threads, ranges))
+    return threads, ranges
 
 
 def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None, allow_padding=False):
@@ -119,6 +118,18 @@ def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None, allo
         return [var]
 
 
+def get_thread_for_pointer(pointer, threads, ranges):
+    left = -1
+    right = len(threads) - 1
+    while right - left > 1:
+        middle = (left + right) // 2
+        if pointer <= ranges[middle][1]:
+            right = middle
+        else:
+            left = middle
+    return threads[right] if ranges[right][0] <= pointer <= ranges[right][1] else None
+
+
 @log_time
 def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = None):
     """
@@ -131,13 +142,13 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     """
     if pointee_type and pointee_type.name == 'void':
         pointee_type = None
-    for thread, (left, right) in get_threads_with_range(process):
-        if not (left <= pointer <= right):
-            continue
+
+    thread = get_thread_for_pointer(pointer, *get_threads_with_ranges(process))
+    if thread:
         last_cfa = 0
         for i in range(thread.GetNumFrames()):
             frame = thread.GetFrameAtIndex(i)
-            # TODO: assert sorted + bin search
+            # TODO: bin search
 
             # Iterating over frames from deep to high (stack grows downwards)
             assert last_cfa < frame.GetCFA()
