@@ -146,7 +146,7 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     if thread:
         frame = get_frame_for_pointer(pointer, thread)
         if frame:
-            for var in frame.vars:
+            for var in frame.GetVariables(True, True, False, True):
                 location = read_location(var.location)
                 if not location:
                     continue
@@ -176,7 +176,7 @@ def visualise_pointers(debugger, command, exe_ctx, result, internal_dict):
     """
     Take all pointers from current frame and find their target
     """
-    pointers = list(filter(lambda x: x.type.is_pointer, exe_ctx.GetFrame().vars))
+    pointers = list(filter(lambda x: x.type.is_pointer, exe_ctx.GetFrame().GetVariables(True, True, False, True)))
     pointers = list(map(lambda x: (x.data.uint64s[0], x.GetName(), x.type.GetPointeeType()), pointers))
     for pointer, ptr_name, pointee_type in pointers:
         trace_info = trace_pointer(pointer, exe_ctx.GetProcess(), pointee_type)
