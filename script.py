@@ -69,15 +69,18 @@ def get_threads_with_range(process: lldb.SBProcess):
     """
     threads = sorted(process.threads, key=lambda x: x.GetFrameAtIndex(0).sp)
     ranges = []
-    id = 0
     with open(PATH_TO_MAPS.format(process.id), 'r') as maps:
-        for line in maps:
-            # parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
-            left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
-            if id < len(threads) and left <= threads[id].GetFrameAtIndex(0).sp <= right:
+        for thread in threads:
+            for line in maps:
+
+                # parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
+                left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
                 assert left <= right
-                ranges.append((left, right))
-                id += 1
+
+                if left <= thread.GetFrameAtIndex(0).sp <= right:
+                    ranges.append((left, right))
+                    break
+
     return list(zip(threads, ranges))
 
 
