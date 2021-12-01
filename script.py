@@ -11,11 +11,8 @@ OUTPUT_PATTERN = '"{ptr_name}" points to object "{obj_name}", that located in "{
 
 def read_location(location):
     """
-    Trying to cast location from "proc/{PID}/maps" to int
+    Trying to cast location from "proc/{PID}/maps" to int or None
     e.g 7f000d417000 -> int(...)
-
-    :param location: string in hex form
-    :return: int or None
     """
     try:
         return int(location, 16)
@@ -62,10 +59,7 @@ class TraceInfo:
 
 def get_threads_with_ranges(process: lldb.SBProcess):
     """
-    Gets range of stack for every thread in the process
-
-    :param process: current process running
-    :return: tuple (list of lldb.SBThread, list of (left, right))
+    Gets range of stack for every thread in the process.
     """
     threads = sorted(process.threads, key=lambda x: x.GetFrameAtIndex(0).sp)
     ranges = []
@@ -87,12 +81,6 @@ def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None, allo
     """
     If var is not a struct or array, then return it.
     Otherwise, look through all members of var and go inside at which pointer points.
-
-    :param pointer:
-    :param var: current var that we look at
-    :param pointee_type: pointee_type or None
-    :raises ValueError:
-    :return: list of lldb.SBValue
     """
     if var.num_children > 0 and not var.type.is_pointer and var.type != pointee_type:
         for child in var.children:
@@ -131,6 +119,10 @@ def get_thread_for_pointer(pointer, threads, ranges):
 
 
 def get_frame_for_pointer(pointer, thread: lldb.SBThread):
+    """
+    Find the frame that contains pointer or None.
+    It works on the assumption that thread.GetFrames() returns frames in increasing CanonicalFrameAddress order
+    """
     left = -1
     right = thread.GetNumFrames() - 1
     while right - left > 1:
@@ -146,15 +138,9 @@ def get_frame_for_pointer(pointer, thread: lldb.SBThread):
 def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = None):
     """
     Finding thread, stack, function, object to which the pointer points
-
-    :param pointer: pointer (that may be invalid) to object
-    :param process: current process running
-    :param pointee_type: pointee_type or None
-    :return: TraceInfo or None
     """
     if pointee_type and pointee_type.name == 'void':
         pointee_type = None
-
     thread = get_thread_for_pointer(pointer, *get_threads_with_ranges(process))
     if thread:
         frame = get_frame_for_pointer(pointer, thread)
@@ -197,6 +183,8 @@ def visualise_pointers(debugger, command, exe_ctx, result, internal_dict):
 
 
 def __lldb_init_module(debugger, internal_dict):
-    # command script import python_code/script.py
+    """
+    Code below runs with 'command script import script.py'
+    """
     debugger.HandleCommand('command script add -f script.visualise_pointers vp')
     debugger.HandleCommand('command script add -f script.tp tp')
