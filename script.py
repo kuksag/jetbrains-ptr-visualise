@@ -131,14 +131,20 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     for thread, (left, right) in get_threads_with_range(process):
         if not (left <= pointer <= right):
             continue
+        last_cfa = 0
         for i in range(thread.GetNumFrames()):
             frame = thread.GetFrameAtIndex(i)
             # TODO: assert sorted + bin search
 
-            # frames goes in stack in from greater to smaller order
-            # pass every single, which frame pointer is smaller than our pointer
-            if frame.GetFP() < pointer:
+            # Iterating over frames from deep to high (stack grows downwards)
+            assert last_cfa < frame.GetCFA()
+            last_cfa = frame.GetCFA()
+
+            # Pass every frame, which Frame Canonical Address is smaller than our pointer
+            # The first cfa, that greater than the pointer contains the pointee-object
+            if frame.GetCFA() < pointer:
                 continue
+
             for var in frame.vars:
                 location = read_location(var.location)
                 if not location:
