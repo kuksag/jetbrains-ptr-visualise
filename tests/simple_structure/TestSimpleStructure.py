@@ -24,6 +24,6 @@ class TestSimpleStructure(TestBase):
                                                                             "Set a breakpoint here",
                                                                             self.main_source_file)
 
-        self.expect("vp", ordered=False, substrs=['"a" points to object "foo.A"',
-                                                  '"b" points to object "foo.B"',
-                                                  '"c" points to object "foo.C"'])
+        self.expect("vp", ordered=False, substrs=['"a" points to "foo.A"',
+                                                  '"b" points to "foo.B"',
+                                                  '"c" points to "foo.C"'])

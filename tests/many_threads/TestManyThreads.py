@@ -24,6 +24,6 @@ class TestManyThreads(TestBase):
                                                                             "Set a breakpoint here",
                                                                             self.main_source_file)
 
-        self.expect("vp", ordered=False, substrs=['"a" points to object "A"',
-                                                  '"b" points to object "B"',
-                                                  '"c" points to object "C"'])
+        self.expect("vp", ordered=False, substrs=['"a" points to "A"',
+                                                  '"b" points to "B"',
+                                                  '"c" points to "C"'])

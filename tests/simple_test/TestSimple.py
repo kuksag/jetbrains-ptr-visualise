@@ -24,4 +24,4 @@ class SimpleTest(TestBase):
                                                                             "Set a breakpoint here",
                                                                             self.main_source_file)
 
-        self.expect("vp", startstr='"b" points to object "a"')
+        self.expect("vp", startstr='"b" points to "a"')

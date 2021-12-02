@@ -24,5 +24,5 @@ class TestNestedStructure(TestBase):
                                                                             "Set a breakpoint here",
                                                                             self.main_source_file)
 
-        self.expect("vp", ordered=False, substrs=['"D" points to object "foo.b[1].d"',
-                                                  '"E" points to object "foo.b[2].e[3]"'])
+        self.expect("vp", ordered=False, substrs=['"D" points to "foo.b[1].d"',
+                                                  '"E" points to "foo.b[2].e[3]"'])
