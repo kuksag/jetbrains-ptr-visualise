@@ -71,7 +71,7 @@ class PointerMatch:
                                      thread_id=self.thread.idx)
 
 
-def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
+def traverse_var_tree(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
     """
     If var is not a struct or array, then return it.
     Otherwise, look through all members of var and go inside at which pointer points.
@@ -88,7 +88,7 @@ def trace_var(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
         child = var.GetChildAtIndex(i)
         location = int(child.location, 16)
         if location <= pointer < location + child.size:
-            result.extend(trace_var(pointer, child, pointee_type))
+            result.extend(traverse_var_tree(pointer, child, pointee_type))
 
     return result
 
@@ -133,7 +133,7 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
             for var in frame.GetVariables(True, True, False, True):
                 location = int(var.location, 16)
                 if location <= pointer < location + var.size:
-                    trace = trace_var(pointer, var, pointee_type)
+                    trace = traverse_var_tree(pointer, var, pointee_type)
                     trace.thread = thread
                     trace.frame = frame
                     trace.pointer = pointer
@@ -141,13 +141,16 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     return None
 
 
-def tp(debugger, command, exe_ctx, result, internal_dict):
+def visualise_pointer(debugger, command, exe_ctx, result, internal_dict):
     """
     Alias for call from debugger
     """
     # TODO: handle hex
     pointer_match = trace_pointer(int(command), exe_ctx.GetProcess())
-    print(pointer_match.to_plain(), file=result)
+    if pointer_match:
+        print(pointer_match.to_plain(), file=result)
+    else:
+        print('Not found', file=result)
 
 
 @log_time
@@ -167,4 +170,4 @@ def __lldb_init_module(debugger, internal_dict):
     Code below runs with 'command script import script.py'
     """
     debugger.HandleCommand('command script add -f script.visualise_pointers vp')
-    debugger.HandleCommand('command script add -f script.tp tp')
+    debugger.HandleCommand('command script add -f script.visualise_pointer tp')
