@@ -3,8 +3,9 @@ struct Foo {
 };
 
 int main() {
-  Foo F{};
-  Foo *f = &F;
-  int *a = &F.A;
+  Foo foo{};
+  Foo *ptr_foo = &foo;
+  int *ptr_foo_a = &foo.A;
+  void *void_foo = &foo;
   return 0; // Set a breakpoint here
 }
