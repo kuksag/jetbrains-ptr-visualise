@@ -24,7 +24,7 @@ class TestArray(TestBase):
                                                                             "Set a breakpoint here",
                                                                             self.main_source_file)
 
-        self.expect("vp", ordered=False, substrs=['"a" points to object "array[0]", that located in "main"',
-                                                  '"b" points to object "array[1]", that located in "main"',
-                                                  '"c" points to object "array[2]", that located in "main"',
-                                                  '"d" points to object "array[3]", that located in "main"'])
+        self.expect("vp", ordered=False, substrs=['"a" points to "array[0]", that located in "main"',
+                                                  '"b" points to "array[1]", that located in "main"',
+                                                  '"c" points to "array[2]", that located in "main"',
+                                                  '"d" points to "array[3]", that located in "main"'])
