@@ -24,12 +24,13 @@ class TestMiddlePointer(TestBase):
                                                                             "Set a breakpoint here",
                                                                             self.main_source_file)
 
-        self.expect("vp", substrs=['"pa1" points to object "foo.a"',
-                                   '"pa2" points to object "foo.a (offset +1)"',
-                                   '"pb1" points to object "foo.b"',
-                                   '"pc1" points to object "foo.c"',
-                                   '"pc2" points to object "foo.c (offset +1)"',
-                                   '"pc3" points to object "foo.c (offset +2)"',
-                                   '"pc4" points to object "foo.c (offset +3)"',
-                                   '"pd1" points to object "bar (offset +7)"',
-                                   '"pd2" points to object "bar.e'])
+        self.expect("vp", substrs=['''"ptr_a" points to "['foo', 'foo.a']"''',
+                                   '''"ptr_a_1" points to "['foo + 0x1', 'foo.a + 0x1']"''',
+                                   '''"ptr_b" points to "foo.b"''',
+                                   '''"ptr_c" points to "foo.c"''',
+                                   '''"ptr_c_1" points to "['foo + 0x4', 'foo.c + 0x1']"''',
+                                   '''"ptr_c_2" points to "['foo + 0x5', 'foo.c + 0x2']"''',
+                                   '''"ptr_c_3" points to "['foo + 0x6', 'foo.c + 0x3']"''',
+
+                                   '''"ptr_bar_7" points to "bar + 0x7"''',
+                                   '''"ptr_e" points to "bar.e"'''])
