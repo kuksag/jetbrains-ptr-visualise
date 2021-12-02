@@ -24,5 +24,15 @@ class TestUnion(TestBase):
                                                                             "Set a breakpoint here",
                                                                             self.main_source_file)
 
-        self.expect("vp", substrs=['"pa" points to object "a.A", that located in "main"',
-                                   '"pb" points to object "b.B", that located in "main"'])
+        self.expect("vp", ordered=False, substrs=['"pointer_foo_a" points to "foo.A"',
+                                                  '"pointer_bar_b" points to "bar.B"',
+
+                                                  '"pointer_baz_x" points to "baz.A.x"',
+                                                  '''"pointer_baz_y" points to "['baz.A.y', 'baz.B.z']"''',
+                                                  '''"void_pointer_baz_x" points to "['baz', 'baz.A', 'baz.A.x', 'baz.B', 'baz.B.w']"''',
+                                                  '''"void_pointer_baz_y" points to "['baz.A.y', 'baz.B.z']"''',
+
+                                                  '"pointer_qux_w" points to "qux.B.w"',
+                                                  '''"pointer_qux_z" points to "['qux.A.y', 'qux.B.z']"''',
+                                                  '''"void_qux_w" points to "['qux', 'qux.A', 'qux.A.x', 'qux.B', 'qux.B.w']"''',
+                                                  '''"void_qux_z" points to "['qux.A.y', 'qux.B.z']"'''])
