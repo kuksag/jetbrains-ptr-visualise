@@ -1,5 +1,6 @@
 #include <thread>
 #include <vector>
+#include <chrono>
 
 const int RECURSION_LEVEL = 1000;
 const int THREAD_COUNT = 300;
@@ -14,6 +15,7 @@ void foo(int level = 0) {
     int *f = &A;
     int *g = &A;
     int *j = &A;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
     if (level >= RECURSION_LEVEL) {
         return; // Set a breakpoint here
     }
