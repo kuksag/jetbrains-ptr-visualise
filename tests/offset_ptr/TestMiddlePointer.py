@@ -25,12 +25,12 @@ class TestMiddlePointer(TestBase):
                                                                             self.main_source_file)
 
         self.expect("vp", substrs=['''"ptr_a" points to "['foo', 'foo.a']"''',
-                                   '''"ptr_a_1" points to "['foo + 0x1', 'foo.a + 0x1']"''',
+                                   '''"ptr_a_1" points to "foo + 0x1"''',
                                    '''"ptr_b" points to "foo.b"''',
                                    '''"ptr_c" points to "foo.c"''',
-                                   '''"ptr_c_1" points to "['foo + 0x4', 'foo.c + 0x1']"''',
-                                   '''"ptr_c_2" points to "['foo + 0x5', 'foo.c + 0x2']"''',
-                                   '''"ptr_c_3" points to "['foo + 0x6', 'foo.c + 0x3']"''',
+                                   '''"ptr_c_1" points to "foo.c + 0x1"''',
+                                   '''"ptr_c_2" points to "foo.c + 0x2"''',
+                                   '''"ptr_c_3" points to "foo.c + 0x3"''',
 
                                    '''"ptr_bar_7" points to "bar + 0x7"''',
                                    '''"ptr_e" points to "bar.e"'''])

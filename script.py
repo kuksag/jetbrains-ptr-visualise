@@ -58,8 +58,9 @@ class PointerMatch:
 
     def to_plain(self, ptr_name=None):
         plain_matches = self._get_info_from_matches()
+        plain_matches[2].sort(key=lambda x: x[1])
         match = plain_matches[0] or plain_matches[1] or list(
-            map(lambda x: f'{x[0]} + {hex(x[1])}', plain_matches[2]))
+            map(lambda x: f'{x[0]} + {hex(x[1])}', plain_matches[2][:1]))
         if not match:
             return 'Not found'
         if len(match) == 1:
