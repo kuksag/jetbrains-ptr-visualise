@@ -72,6 +72,14 @@ class PointerMatch:
                                      thread_id=self.thread.idx)
 
 
+def add_arrays_ending(pointer_match: PointerMatch, var: lldb.SBValue, pointee_type: lldb.SBType):
+    """
+    Resolve situation, when we point to an address right after an array
+    """
+    pointer_match.matches[0 if var.type.GetArrayElementType() == pointee_type else 1].append(
+        var.GetChildAtIndex(var.num_children, lldb.eDynamicCanRunTarget, True))
+
+
 def traverse_var_tree(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = None):
     """
     If var is not a struct or array, then return it.
@@ -88,8 +96,11 @@ def traverse_var_tree(pointer, var: lldb.SBValue, pointee_type: lldb.SBType = No
     for i in range(var.num_children):
         child = var.GetChildAtIndex(i)
         location = int(child.location, 16)
-        if location <= pointer < location + child.size:
+        size = child.size
+        if location <= pointer < location + size:
             result.extend(traverse_var_tree(pointer, child, pointee_type))
+        elif pointer == location + size and child.type.IsArrayType():
+            add_arrays_ending(result, child, pointee_type)
 
     return result
 
@@ -131,14 +142,20 @@ def trace_pointer(pointer, process: lldb.SBProcess, pointee_type: lldb.SBType = 
     if thread:
         frame = get_frame_for_pointer(pointer, thread)
         if frame:
+            trace = PointerMatch()
             for var in frame.GetVariables(True, True, False, True):
+                if not var.location:
+                    continue
                 location = int(var.location, 16)
-                if location <= pointer < location + var.size:
+                size = var.size
+                if location <= pointer < location + size:
                     trace = traverse_var_tree(pointer, var, pointee_type)
                     trace.thread = thread
                     trace.frame = frame
                     trace.pointer = pointer
-                    return trace
+                elif pointer == location + size and var.type.IsArrayType():
+                    add_arrays_ending(trace, var, pointee_type)
+            return trace
     return None
 
 

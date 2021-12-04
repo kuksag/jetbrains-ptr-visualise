@@ -27,4 +27,6 @@ class TestArray(TestBase):
         self.expect("vp", ordered=False, substrs=['"a" points to "array[0]", that located in "main"',
                                                   '"b" points to "array[1]", that located in "main"',
                                                   '"c" points to "array[2]", that located in "main"',
-                                                  '"d" points to "array[3]", that located in "main"'])
+                                                  '"d" points to "array[3]", that located in "main"',
+                                                  '''"qux" points to "['foo.bar[4]', 'foo.baz']"''',
+                                                  '''"waldo" points to "['foo.bar[4]', 'foo.baz']"'''])
