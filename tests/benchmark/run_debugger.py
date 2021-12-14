@@ -43,6 +43,9 @@ def run():
         process = target.LaunchSimple(None, None, os.getcwd())
         if process:
             state = process.GetState()
+
+            assert process.num_threads == 301
+
             if state == lldb.eStateStopped:
                 debugger.HandleCommand(f'command script import {PATH_TO_SCRIPT}')
 
