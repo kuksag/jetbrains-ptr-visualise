@@ -1,12 +1,14 @@
-#!/usr/bin/env python
-
 import lldb
 import json
+import subprocess
+import platform
 from time_logger import log_time
 
-PATH_TO_MAPS = '/proc/{}/maps'
+LINUX_PATH_TO_MAPS = '/proc/{}/maps'
 OUTPUT_PATTERN = '"{ptr_name}" points to "{obj_name}", that located in "{func_name}", frame #{frame_id}, ' \
                  'of thread #{thread_id} '
+WINDOWS_THREAD_RANGES_SOURCE = 'thread_ranges.cpp'
+WINDOWS_THREAD_RANGES_EXE = 'thread_ranges.exe'
 
 
 def get_threads_with_ranges(process: lldb.SBProcess):
@@ -15,17 +17,24 @@ def get_threads_with_ranges(process: lldb.SBProcess):
     """
     threads = sorted(process.threads, key=lambda x: x.GetFrameAtIndex(0).sp)
     ranges = []
-    with open(PATH_TO_MAPS.format(process.id), 'r') as maps:
-        for thread in threads:
-            for line in maps:
+    if platform.system() == 'Linux':
+        with open(LINUX_PATH_TO_MAPS.format(process.id), 'r') as maps:
+            for thread in threads:
+                for line in maps:
+                    left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
+                    assert left <= right
+                    if left <= thread.GetFrameAtIndex(0).sp <= right:
+                        ranges.append((left, right))
+                        break
+    elif platform.system() == 'Windows':
+        def get_range(thread):
+            left, right = map(lambda x: int(x, 16),
+                              subprocess.check_output(
+                                  [WINDOWS_THREAD_RANGES_EXE, str(process.id), str(thread.id)]).split())
+            return left, right
 
-                # Parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
-                left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
-                assert left <= right
+        ranges = list(map(lambda t: get_range(t), threads))
 
-                if left <= thread.GetFrameAtIndex(0).sp <= right:
-                    ranges.append((left, right))
-                    break
     return threads, ranges
 
 
@@ -187,5 +196,9 @@ def __lldb_init_module(debugger, internal_dict):
     """
     Code below runs with 'command script import script.py'
     """
+
+    if platform.system() == 'Windows':
+        subprocess.run(['clang++', WINDOWS_THREAD_RANGES_SOURCE, '-o', WINDOWS_THREAD_RANGES_EXE], check=True)
+
     debugger.HandleCommand('command script add -f script.visualise_pointers vp')
     debugger.HandleCommand('command script add -f script.visualise_pointer tp')
