@@ -20,7 +20,7 @@ def get_threads_with_ranges(process: lldb.SBProcess):
             for line in maps:
 
                 # Parse '0x12-0x34 56 78' to (0x12, 0x34) and cast to base 10
-                left, right = list(map(lambda x: int(x, 16), line.split()[0].split('-')))
+                left, right = map(lambda x: int(x, 16), line.split()[0].split('-'))
                 assert left <= right
 
                 if left <= thread.GetFrameAtIndex(0).sp <= right:
