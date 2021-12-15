@@ -1,5 +1,6 @@
 """
-Check the many frames case
+Check pointer to an array and its elements; 
+Check "pointer after array" case
 """
 
 from lldbsuite.test.lldbtest import *
